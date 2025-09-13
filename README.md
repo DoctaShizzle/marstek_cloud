@@ -1,5 +1,10 @@
-# Marstek Cloud Battery – Home Assistant Custom Integration
+# Marstek Cloud Battery – Home Assistant Custom Integrat## ⚙ Configuration
 
+- **Scan interval** can be set during initial setup and changed later via the integration's **Options** menu.
+- **Default battery capacity** (in kWh) can be set for each battery during setup or via the **Options** menu.
+- **Flexible options flow** handles scenarios where devices aren't immediately available, allowing scan interval configuration even without connected devices.
+- Default capacity is 5.12 kWh.
+- Minimum scan interval is 10 seconds, maximum is 3600 seconds.
 This custom integration connects your Marstek battery system (via the Marstek cloud API) to Home Assistant, pulling live data and exposing it as sensor entities.
 
 ---
@@ -8,6 +13,9 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 
 - **Automatic login & token refresh**  
   Logs in to the Marstek cloud API using your credentials, hashes your password (MD5) before sending, and automatically refreshes the token if it expires.
+  
+- **Connection validation during setup**  
+  Tests your credentials during initial configuration to ensure they work before completing setup.
   
 - **Configurable scan interval**  
   Set how often the integration polls the API (10–3600 seconds) during initial setup or later via the Options menu.
@@ -42,6 +50,27 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 
 ---
 
+## 🚀 Recent Improvements
+
+### **Enhanced Reliability & Performance**
+- **Improved error handling**: Custom exception types with proper integration into Home Assistant's reauth system
+- **Connection validation**: Credentials are tested during setup to ensure immediate feedback
+- **Optimized entity creation**: Removed inefficient duplicate checking logic for better performance
+- **Enhanced type safety**: Comprehensive type hints throughout the codebase for better maintainability
+
+### **Better User Experience**
+- **Flexible configuration**: Options flow now handles scenarios where devices aren't immediately available
+- **Improved error messages**: More informative error reporting with specific error types
+- **Robust authentication**: Automatic reauth flow triggers when credentials become invalid
+- **Better null safety**: Enhanced defensive programming to prevent crashes during edge cases
+
+### **Code Quality Improvements**
+- **Modern Python practices**: Full type annotations and consistent coding patterns
+- **Reduced redundancy**: Optimized sensor classes with improved data handling
+- **Better architecture**: Cleaner separation of concerns and improved maintainability
+
+---
+
 ## 🛠 Installation
 
 1. Copy the `marstek_cloud` folder into your Home Assistant `custom_components` directory.
@@ -64,11 +93,20 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 
 The integration includes robust error handling to ensure reliable operation:
 
+- **Enhanced authentication flow**  
+  Custom exception handling that integrates with Home Assistant's reauth system. Authentication failures automatically trigger the reauth flow to update credentials.
+
+- **Connection testing during setup**  
+  Validates your credentials before completing the integration setup, providing immediate feedback if there are authentication issues.
+
 - **Automatic token refresh**  
   When API tokens expire or become invalid, the integration automatically obtains a new token and retries the failed request.
 
 - **Code 8 error recovery**  
   When the API returns error code 8 (no access permission), the integration clears the cached token and will automatically obtain a fresh token on the next update cycle.
+
+- **Comprehensive error classification**  
+  Distinguishes between authentication errors, network issues, and API errors with appropriate handling for each type.
 
 - **Graceful sensor handling**  
   Sensors continue to function during temporary API issues:
@@ -77,7 +115,7 @@ The integration includes robust error handling to ensure reliable operation:
   - All sensors automatically resume normal operation once connectivity is restored
 
 - **Defensive data validation**  
-  All sensor calculations include checks for missing or invalid data to prevent crashes during edge cases.
+  All sensor calculations include comprehensive checks for missing or invalid data to prevent crashes during edge cases.
 
 ---
 
@@ -151,7 +189,14 @@ sequenceDiagram
     participant ENT as Sensor Entities
 
     HA->>CF: User enters email, password, scan interval, capacities
-    CF-->>HA: Store credentials, scan interval, capacities
+    CF->>API: Test connection with credentials
+    alt Credentials valid
+        API-->>CF: Connection successful
+        CF-->>HA: Store credentials, scan interval, capacities
+    else Credentials invalid
+        API-->>CF: Authentication error
+        CF-->>HA: Show error message
+    end
     HA->>CO: Create coordinator with API client
     CO->>API: POST login (MD5 password)
     API-->>CO: Return token
@@ -166,6 +211,9 @@ sequenceDiagram
             API-->>CO: Error code 8
             CO->>CO: Clear cached token
             Note over CO: Next cycle will get new token
+        else Authentication failure
+            API-->>CO: Auth error
+            CO-->>HA: Trigger reauth flow
         end
         API-->>CO: Return device data
         CO-->>ENT: Update all sensor values
@@ -177,10 +225,21 @@ sequenceDiagram
 
 ## 🔧 Troubleshooting
 
+### **Setup Issues**
+- **Invalid credentials**: The integration will test your credentials during setup and show an error if they're incorrect
+- **Connection problems**: Check your internet connection and ensure the Marstek API endpoints are accessible
+- **Unknown errors**: Enable debug logging (see below) for more detailed error information
+
 ### **Sensors Stop Updating**
 - **Check the logs** for error messages about API timeouts or authentication issues
 - **Restart the integration** via Settings → Devices & Services → Marstek Cloud Battery → Configure
 - **Verify credentials** are still valid by trying to log in to the Marstek web portal
+- **Check the connection status sensor** to see if the integration is currently online
+
+### **Authentication Errors**
+- **Automatic reauth flow**: Authentication failures will automatically trigger Home Assistant's reauth flow
+- **Update credentials**: Go to Settings → Devices & Services → Marstek Cloud Battery → Configure to update your credentials
+- **Check account status**: Ensure your Marstek account is active and has proper permissions
 
 ### **Code 8 Errors (No Access Permission)**
 - This is normal behavior when tokens expire naturally
@@ -195,7 +254,12 @@ sequenceDiagram
 ### **Missing Devices**
 - Ensure devices are properly registered and online in the Marstek cloud platform
 - Check device permissions in your Marstek account
+- The options flow will show a helpful message if no devices are found
 - Restart Home Assistant if devices don't appear after initial setup
+
+### **Configuration Issues**
+- **Missing device options**: If you don't see device-specific options, ensure devices are properly connected and visible in the Marstek platform
+- **Scan interval not updating**: Changes to scan interval require a restart of the integration
 
 ### **Debugging**
 - Enable debug logging by adding this to your `configuration.yaml`:
@@ -205,3 +269,4 @@ sequenceDiagram
       custom_components.marstek_cloud: debug
   ```
 - Check logs at Settings → System → Logs or in `config/home-assistant.log`
+- Look for specific error types: `MarstekAuthError` (authentication), `MarstekAPIError` (API communication), or `UpdateFailed` (general update issues)
