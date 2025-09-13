@@ -99,8 +99,8 @@ class MarstekBaseSensor(SensorEntity):
 
     @property
     def should_poll(self) -> bool:
-        """No need to poll. Coordinator notifies entity of updates."""
-        return False
+        """Return True to enable polling for sensor updates."""
+        return True
 
     @property
     def device_info(self) -> Dict[str, Any]:
@@ -177,8 +177,8 @@ class MarstekTotalChargeSensor(SensorEntity):
 
     @property
     def should_poll(self) -> bool:
-        """No need to poll. Coordinator notifies entity of updates."""
-        return False
+        """Return True to enable polling for sensor updates."""
+        return True
 
     @property
     def native_value(self) -> Optional[float]:
@@ -228,8 +228,8 @@ class MarstekTotalPowerSensor(SensorEntity):
 
     @property
     def should_poll(self) -> bool:
-        """No need to poll. Coordinator notifies entity of updates."""
-        return False
+        """Return True to enable polling for sensor updates."""
+        return True
 
     @property
     def native_value(self) -> Optional[float]:
