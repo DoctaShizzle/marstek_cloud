@@ -38,23 +38,25 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
     existing_entities = hass.states.async_entity_ids()  # Get existing entity IDs
 
-    for device in coordinator.data:
-        # Add main battery data sensors
-        for key, meta in SENSOR_TYPES.items():
-            unique_id = f"{device['devid']}_{key}"
-            if unique_id not in existing_entities:  # Check if entity already exists
-                entities.append(MarstekSensor(coordinator, device, key, meta))
+    # Defensive check for coordinator data
+    if coordinator.data:
+        for device in coordinator.data:
+            # Add main battery data sensors
+            for key, meta in SENSOR_TYPES.items():
+                unique_id = f"{device['devid']}_{key}"
+                if unique_id not in existing_entities:  # Check if entity already exists
+                    entities.append(MarstekSensor(coordinator, device, key, meta))
 
-        # Add diagnostic sensors
-        for key, meta in DIAGNOSTIC_SENSORS.items():
-            unique_id = f"{device['devid']}_{key}"
-            if unique_id not in existing_entities:  # Check if entity already exists
-                entities.append(MarstekDiagnosticSensor(coordinator, device, key, meta))
+            # Add diagnostic sensors
+            for key, meta in DIAGNOSTIC_SENSORS.items():
+                unique_id = f"{device['devid']}_{key}"
+                if unique_id not in existing_entities:  # Check if entity already exists
+                    entities.append(MarstekDiagnosticSensor(coordinator, device, key, meta))
 
-        # Add total charge per device sensor
-        unique_id = f"{device['devid']}_total_charge"
-        if unique_id not in existing_entities:  # Check if entity already exists
-            entities.append(MarstekDeviceTotalChargeSensor(coordinator, device, "total_charge", {"name": "Total Charge", "unit": UnitOfEnergy.KILO_WATT_HOUR}))
+            # Add total charge per device sensor
+            unique_id = f"{device['devid']}_total_charge"
+            if unique_id not in existing_entities:  # Check if entity already exists
+                entities.append(MarstekDeviceTotalChargeSensor(coordinator, device, "total_charge", {"name": "Total Charge", "unit": UnitOfEnergy.KILO_WATT_HOUR}))
 
     # Add total charge across all devices sensor
     unique_id = f"total_charge_all_devices_{entry.entry_id}"
@@ -100,6 +102,10 @@ class MarstekSensor(MarstekBaseSensor):
     @property
     def native_value(self):
         """Return the current value of the sensor."""
+        # Defensive check for coordinator data
+        if not self.coordinator.data:
+            return None
+            
         for dev in self.coordinator.data:
             if dev["devid"] == self.devid:
                 return dev.get(self.key)
@@ -143,6 +149,10 @@ class MarstekTotalChargeSensor(SensorEntity):
     @property
     def native_value(self):
         """Return the total charge across all devices."""
+        # Defensive check for coordinator data
+        if not self.coordinator.data:
+            return None
+            
         total_charge = 0
         for device in self.coordinator.data:
             soc = device.get("soc", 0)
@@ -152,6 +162,10 @@ class MarstekTotalChargeSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
+        # Defensive check for coordinator data
+        if not self.coordinator.data:
+            return {"device_count": 0}
+            
         return {
             "device_count": len(self.coordinator.data),
         }
@@ -170,6 +184,10 @@ class MarstekTotalPowerSensor(SensorEntity):
     @property
     def native_value(self):
         """Return the total power (charge - discharge) across all devices."""
+        # Defensive check for coordinator data
+        if not self.coordinator.data:
+            return None
+            
         total_power = 0
         for device in self.coordinator.data:
             charge_power = device.get("charge", 0)
@@ -179,6 +197,10 @@ class MarstekTotalPowerSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
+        # Defensive check for coordinator data
+        if not self.coordinator.data:
+            return {"device_count": 0}
+            
         return {
             "device_count": len(self.coordinator.data),
         }
@@ -190,12 +212,34 @@ class MarstekDeviceTotalChargeSensor(MarstekBaseSensor):
     @property
     def native_value(self):
         """Return the total charge for the device."""
-        soc = self.device_data.get("soc", 0)
-        capacity_kwh = self.device_data.get("capacity_kwh", DEFAULT_CAPACITY_KWH)
-        return round((soc / 100) * capacity_kwh, 2)
+        # Defensive check for coordinator data
+        if not self.coordinator.data:
+            return None
+            
+        # Find current device data from coordinator instead of using stale device_data
+        for dev in self.coordinator.data:
+            if dev["devid"] == self.devid:
+                soc = dev.get("soc", 0)
+                capacity_kwh = dev.get("capacity_kwh", DEFAULT_CAPACITY_KWH)
+                return round((soc / 100) * capacity_kwh, 2)
+        return None
 
     @property
     def extra_state_attributes(self):
+        # Defensive check for coordinator data
+        if not self.coordinator.data:
+            return {
+                "device_name": self.device_data.get("name"),
+                "capacity_kwh": self.device_data.get("capacity_kwh", DEFAULT_CAPACITY_KWH),
+            }
+            
+        # Find current device data from coordinator for attributes too
+        for dev in self.coordinator.data:
+            if dev["devid"] == self.devid:
+                return {
+                    "device_name": dev.get("name"),
+                    "capacity_kwh": dev.get("capacity_kwh", DEFAULT_CAPACITY_KWH),
+                }
         return {
             "device_name": self.device_data.get("name"),
             "capacity_kwh": self.device_data.get("capacity_kwh", DEFAULT_CAPACITY_KWH),

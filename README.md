@@ -26,6 +26,9 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 - **Cross-device total charge sensor**  
   - `total_charge_all_devices` – Sum of total charges across all batteries (kWh).
 
+- **Cross-device total power sensor**  
+  - `total_power_all_devices` – Net power (charge - discharge) across all batteries (W).
+
 - **Diagnostic sensors**  
   - `last_update` – Time of last successful update
   - `api_latency` – API call duration in milliseconds
@@ -54,6 +57,27 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 - **Default battery capacity** (in kWh) can be set for each battery during setup or via the **Options** menu.
 - Default capacity is 5.12 kWh.
 - Minimum scan interval is 10 seconds, maximum is 3600 seconds.
+
+---
+
+## 🛡️ Error Handling & Resilience
+
+The integration includes robust error handling to ensure reliable operation:
+
+- **Automatic token refresh**  
+  When API tokens expire or become invalid, the integration automatically obtains a new token and retries the failed request.
+
+- **Code 8 error recovery**  
+  When the API returns error code 8 (no access permission), the integration clears the cached token and will automatically obtain a fresh token on the next update cycle.
+
+- **Graceful sensor handling**  
+  Sensors continue to function during temporary API issues:
+  - Diagnostic sensors (`api_latency`, `last_update`, `connection_status`) continue to report integration health
+  - Data sensors return `None` when data is temporarily unavailable, preventing stale data from being displayed
+  - All sensors automatically resume normal operation once connectivity is restored
+
+- **Defensive data validation**  
+  All sensor calculations include checks for missing or invalid data to prevent crashes during edge cases.
 
 ---
 
@@ -138,9 +162,46 @@ sequenceDiagram
             CO->>API: POST login (refresh token)
             API-->>CO: Return new token
             CO->>API: GET device list (retry)
+        else Code 8 (no access permission)
+            API-->>CO: Error code 8
+            CO->>CO: Clear cached token
+            Note over CO: Next cycle will get new token
         end
         API-->>CO: Return device data
         CO-->>ENT: Update all sensor values
         ENT-->>HA: Display updated metrics
     end
 ```
+
+---
+
+## 🔧 Troubleshooting
+
+### **Sensors Stop Updating**
+- **Check the logs** for error messages about API timeouts or authentication issues
+- **Restart the integration** via Settings → Devices & Services → Marstek Cloud Battery → Configure
+- **Verify credentials** are still valid by trying to log in to the Marstek web portal
+
+### **Code 8 Errors (No Access Permission)**
+- This is normal behavior when tokens expire naturally
+- The integration automatically recovers by obtaining a new token
+- If errors persist, check your account permissions on the Marstek platform
+
+### **API Latency Issues**
+- Monitor the `api_latency` sensor to identify network issues
+- Consider increasing the scan interval if you see consistent high latency
+- Check your internet connection and firewall settings
+
+### **Missing Devices**
+- Ensure devices are properly registered and online in the Marstek cloud platform
+- Check device permissions in your Marstek account
+- Restart Home Assistant if devices don't appear after initial setup
+
+### **Debugging**
+- Enable debug logging by adding this to your `configuration.yaml`:
+  ```yaml
+  logger:
+    logs:
+      custom_components.marstek_cloud: debug
+  ```
+- Check logs at Settings → System → Logs or in `config/home-assistant.log`
