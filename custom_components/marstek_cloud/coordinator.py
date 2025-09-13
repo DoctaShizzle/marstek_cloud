@@ -111,6 +111,11 @@ class MarstekCoordinator(DataUpdateCoordinator):
             start = time.perf_counter()
             devices = await self.api.get_devices()
             self.last_latency = round((time.perf_counter() - start) * 1000, 1)
+            
+            # Log successful recovery if we had previous failures
+            if not self.last_update_success:
+                _LOGGER.info("Marstek: Successfully recovered from connection issues")
+            
             return devices
         except MarstekAuthError as err:
             # Convert auth errors to ConfigEntryAuthFailed to trigger reauth flow

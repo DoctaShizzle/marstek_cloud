@@ -4,6 +4,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfPower,
@@ -74,7 +75,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class MarstekBaseSensor(SensorEntity):
+class MarstekBaseSensor(CoordinatorEntity, SensorEntity):
     """Base class for Marstek sensors with shared device info."""
 
     def __init__(
@@ -84,6 +85,7 @@ class MarstekBaseSensor(SensorEntity):
         key: str, 
         meta: Dict[str, Any]
     ) -> None:
+        super().__init__(coordinator)
         self.coordinator = coordinator
         self.devid: str = device["devid"]
         self.device_data: Dict[str, Any] = device
@@ -91,6 +93,16 @@ class MarstekBaseSensor(SensorEntity):
         self._attr_name = f"{device['name']} {meta['name']}"
         self._attr_unique_id = f"{self.devid}_{self.key}"  # Ensure unique ID includes device ID and sensor key
         self._attr_native_unit_of_measurement = meta["unit"]
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
+
+    @property
+    def should_poll(self) -> bool:
+        """No need to poll. Coordinator notifies entity of updates."""
+        return False
 
     @property
     def device_info(self) -> Dict[str, Any]:
@@ -120,10 +132,6 @@ class MarstekSensor(MarstekBaseSensor):
                 return dev.get(self.key)
         return None
 
-    async def async_update(self) -> None:
-        """Manually trigger an update."""
-        await self.coordinator.async_request_refresh()
-
 
 class MarstekDiagnosticSensor(MarstekBaseSensor):
     """Sensor for integration diagnostics."""
@@ -145,15 +153,21 @@ class MarstekDiagnosticSensor(MarstekBaseSensor):
         return None
 
 
-class MarstekTotalChargeSensor(SensorEntity):
+class MarstekTotalChargeSensor(CoordinatorEntity, SensorEntity):
     """Sensor to calculate the total charge across all devices."""
 
     def __init__(self, coordinator: MarstekCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
         self.coordinator = coordinator
         self._attr_name = "Total Charge Across Devices"
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_charge_all_devices_{entry_id}"
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
 
     @property
     def native_value(self) -> Optional[float]:
@@ -181,15 +195,21 @@ class MarstekTotalChargeSensor(SensorEntity):
         }
 
 
-class MarstekTotalPowerSensor(SensorEntity):
+class MarstekTotalPowerSensor(CoordinatorEntity, SensorEntity):
     """Sensor to calculate the total charge and discharge power across all devices."""
 
     def __init__(self, coordinator: MarstekCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
         self.coordinator = coordinator
         self._attr_name = "Total Power Across Devices"
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_power_all_devices_{entry_id}"
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
 
     @property
     def native_value(self) -> Optional[float]:

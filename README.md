@@ -57,6 +57,7 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 - **Connection validation**: Credentials are tested during setup to ensure immediate feedback
 - **Optimized entity creation**: Removed inefficient duplicate checking logic for better performance
 - **Enhanced type safety**: Comprehensive type hints throughout the codebase for better maintainability
+- **Proper sensor coordination**: All sensors now inherit from CoordinatorEntity ensuring proper update notifications
 
 ### **Better User Experience**
 - **Flexible configuration**: Options flow now handles scenarios where devices aren't immediately available
@@ -111,8 +112,9 @@ The integration includes robust error handling to ensure reliable operation:
 - **Graceful sensor handling**  
   Sensors continue to function during temporary API issues:
   - Diagnostic sensors (`api_latency`, `last_update`, `connection_status`) continue to report integration health
-  - Data sensors return `None` when data is temporarily unavailable, preventing stale data from being displayed
-  - All sensors automatically resume normal operation once connectivity is restored
+  - Data sensors properly indicate availability and automatically resume normal operation once connectivity is restored
+  - All sensors inherit from CoordinatorEntity ensuring immediate updates after resilience events
+  - Sensor availability reflects the actual connection state preventing display of stale data
 
 - **Defensive data validation**  
   All sensor calculations include comprehensive checks for missing or invalid data to prevent crashes during edge cases.
