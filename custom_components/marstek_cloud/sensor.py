@@ -128,11 +128,17 @@ class MarstekSensor(MarstekBaseSensor):
         """Return the current value of the sensor."""
         # Defensive check for coordinator data
         if not self.coordinator.data:
+            _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: No coordinator data available")
             return None
-            
+        
+        _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: Checking {len(self.coordinator.data)} devices for devid {self.devid}")
         for dev in self.coordinator.data:
             if dev["devid"] == self.devid:
-                return dev.get(self.key)
+                value = dev.get(self.key)
+                _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: Found device, key {self.key} = {value}")
+                return value
+        
+        _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: Device {self.devid} not found in coordinator data")
         return None
 
 
@@ -180,15 +186,22 @@ class MarstekTotalChargeSensor(CoordinatorEntity, SensorEntity):
         """Return the total charge across all devices."""
         # Defensive check for coordinator data
         if not self.coordinator.data:
+            _LOGGER.debug("Marstek total charge sensor: No coordinator data available")
             return None
-            
+        
+        _LOGGER.debug(f"Marstek total charge sensor: Processing {len(self.coordinator.data)} devices")
         total_charge = 0.0
         for device in self.coordinator.data:
-            soc = device.get("soc", 0)
+            soc = device.get("soc")
             capacity_kwh = device.get("capacity_kwh", DEFAULT_CAPACITY_KWH)
             if soc is not None and capacity_kwh is not None:
-                total_charge += (soc / 100.0) * capacity_kwh
-        return round(total_charge, 2)
+                device_charge = (soc / 100.0) * capacity_kwh
+                total_charge += device_charge
+                _LOGGER.debug(f"Marstek total charge sensor: Device {device.get('devid')} SOC={soc}% capacity={capacity_kwh}kWh charge={device_charge}kWh")
+        
+        result = round(total_charge, 2)
+        _LOGGER.debug(f"Marstek total charge sensor: Total charge = {result}kWh")
+        return result
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
