@@ -86,7 +86,6 @@ class MarstekBaseSensor(CoordinatorEntity, SensorEntity):
         meta: Dict[str, Any]
     ) -> None:
         super().__init__(coordinator)
-        self.coordinator = coordinator
         self.devid: str = device["devid"]
         self.device_data: Dict[str, Any] = device
         self.key = key
@@ -103,6 +102,10 @@ class MarstekBaseSensor(CoordinatorEntity, SensorEntity):
     def should_poll(self) -> bool:
         """No need to poll. Coordinator notifies entity of updates."""
         return False
+
+    async def async_added_to_hass(self) -> None:
+        """Connect to dispatcher when added to hass."""
+        await super().async_added_to_hass()
 
     @property
     def device_info(self) -> Dict[str, Any]:
@@ -158,7 +161,6 @@ class MarstekTotalChargeSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(self, coordinator: MarstekCoordinator, entry_id: str) -> None:
         super().__init__(coordinator)
-        self.coordinator = coordinator
         self._attr_name = "Total Charge Across Devices"
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_charge_all_devices_{entry_id}"
@@ -168,6 +170,10 @@ class MarstekTotalChargeSensor(CoordinatorEntity, SensorEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         return self.coordinator.last_update_success
+
+    async def async_added_to_hass(self) -> None:
+        """Connect to dispatcher when added to hass."""
+        await super().async_added_to_hass()
 
     @property
     def native_value(self) -> Optional[float]:
@@ -200,7 +206,6 @@ class MarstekTotalPowerSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(self, coordinator: MarstekCoordinator, entry_id: str) -> None:
         super().__init__(coordinator)
-        self.coordinator = coordinator
         self._attr_name = "Total Power Across Devices"
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_power_all_devices_{entry_id}"
@@ -210,6 +215,10 @@ class MarstekTotalPowerSensor(CoordinatorEntity, SensorEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         return self.coordinator.last_update_success
+
+    async def async_added_to_hass(self) -> None:
+        """Connect to dispatcher when added to hass."""
+        await super().async_added_to_hass()
 
     @property
     def native_value(self) -> Optional[float]:

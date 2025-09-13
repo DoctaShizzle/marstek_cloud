@@ -116,6 +116,7 @@ class MarstekCoordinator(DataUpdateCoordinator):
             if not self.last_update_success:
                 _LOGGER.info("Marstek: Successfully recovered from connection issues")
             
+            _LOGGER.debug(f"Marstek: Fetched {len(devices)} devices, latency: {self.last_latency}ms")
             return devices
         except MarstekAuthError as err:
             # Convert auth errors to ConfigEntryAuthFailed to trigger reauth flow
