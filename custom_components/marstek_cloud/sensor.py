@@ -4,7 +4,6 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfPower,
@@ -75,7 +74,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class MarstekBaseSensor(CoordinatorEntity, SensorEntity):
+class MarstekBaseSensor(SensorEntity):
     """Base class for Marstek sensors with shared device info."""
 
     def __init__(
@@ -85,7 +84,7 @@ class MarstekBaseSensor(CoordinatorEntity, SensorEntity):
         key: str, 
         meta: Dict[str, Any]
     ) -> None:
-        super().__init__(coordinator)
+        self.coordinator = coordinator
         self.devid: str = device["devid"]
         self.device_data: Dict[str, Any] = device
         self.key = key
@@ -102,10 +101,6 @@ class MarstekBaseSensor(CoordinatorEntity, SensorEntity):
     def should_poll(self) -> bool:
         """No need to poll. Coordinator notifies entity of updates."""
         return False
-
-    async def async_added_to_hass(self) -> None:
-        """Connect to dispatcher when added to hass."""
-        await super().async_added_to_hass()
 
     @property
     def device_info(self) -> Dict[str, Any]:
@@ -128,18 +123,16 @@ class MarstekSensor(MarstekBaseSensor):
         """Return the current value of the sensor."""
         # Defensive check for coordinator data
         if not self.coordinator.data:
-            _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: No coordinator data available")
             return None
         
-        _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: Checking {len(self.coordinator.data)} devices for devid {self.devid}")
         for dev in self.coordinator.data:
             if dev["devid"] == self.devid:
-                value = dev.get(self.key)
-                _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: Found device, key {self.key} = {value}")
-                return value
-        
-        _LOGGER.debug(f"Marstek sensor {self._attr_unique_id}: Device {self.devid} not found in coordinator data")
+                return dev.get(self.key)
         return None
+
+    async def async_update(self) -> None:
+        """Manually trigger an update."""
+        await self.coordinator.async_request_refresh()
 
 
 class MarstekDiagnosticSensor(MarstekBaseSensor):
@@ -161,12 +154,17 @@ class MarstekDiagnosticSensor(MarstekBaseSensor):
 
         return None
 
+    async def async_update(self) -> None:
+        """Update the sensor."""
+        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("MarstekDiagnosticSensor async_update completed for %s", self.key)
 
-class MarstekTotalChargeSensor(CoordinatorEntity, SensorEntity):
+
+class MarstekTotalChargeSensor(SensorEntity):
     """Sensor to calculate the total charge across all devices."""
 
     def __init__(self, coordinator: MarstekCoordinator, entry_id: str) -> None:
-        super().__init__(coordinator)
+        self.coordinator = coordinator
         self._attr_name = "Total Charge Across Devices"
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_charge_all_devices_{entry_id}"
@@ -177,31 +175,25 @@ class MarstekTotalChargeSensor(CoordinatorEntity, SensorEntity):
         """Return if entity is available."""
         return self.coordinator.last_update_success
 
-    async def async_added_to_hass(self) -> None:
-        """Connect to dispatcher when added to hass."""
-        await super().async_added_to_hass()
+    @property
+    def should_poll(self) -> bool:
+        """No need to poll. Coordinator notifies entity of updates."""
+        return False
 
     @property
     def native_value(self) -> Optional[float]:
         """Return the total charge across all devices."""
         # Defensive check for coordinator data
         if not self.coordinator.data:
-            _LOGGER.debug("Marstek total charge sensor: No coordinator data available")
             return None
         
-        _LOGGER.debug(f"Marstek total charge sensor: Processing {len(self.coordinator.data)} devices")
         total_charge = 0.0
         for device in self.coordinator.data:
             soc = device.get("soc")
             capacity_kwh = device.get("capacity_kwh", DEFAULT_CAPACITY_KWH)
             if soc is not None and capacity_kwh is not None:
-                device_charge = (soc / 100.0) * capacity_kwh
-                total_charge += device_charge
-                _LOGGER.debug(f"Marstek total charge sensor: Device {device.get('devid')} SOC={soc}% capacity={capacity_kwh}kWh charge={device_charge}kWh")
-        
-        result = round(total_charge, 2)
-        _LOGGER.debug(f"Marstek total charge sensor: Total charge = {result}kWh")
-        return result
+                total_charge += (soc / 100.0) * capacity_kwh
+        return round(total_charge, 2)
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
@@ -213,12 +205,17 @@ class MarstekTotalChargeSensor(CoordinatorEntity, SensorEntity):
             "device_count": len(self.coordinator.data),
         }
 
+    async def async_update(self) -> None:
+        """Update the sensor."""
+        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("MarstekTotalChargeSensor async_update completed")
 
-class MarstekTotalPowerSensor(CoordinatorEntity, SensorEntity):
+
+class MarstekTotalPowerSensor(SensorEntity):
     """Sensor to calculate the total charge and discharge power across all devices."""
 
     def __init__(self, coordinator: MarstekCoordinator, entry_id: str) -> None:
-        super().__init__(coordinator)
+        self.coordinator = coordinator
         self._attr_name = "Total Power Across Devices"
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_power_all_devices_{entry_id}"
@@ -229,9 +226,10 @@ class MarstekTotalPowerSensor(CoordinatorEntity, SensorEntity):
         """Return if entity is available."""
         return self.coordinator.last_update_success
 
-    async def async_added_to_hass(self) -> None:
-        """Connect to dispatcher when added to hass."""
-        await super().async_added_to_hass()
+    @property
+    def should_poll(self) -> bool:
+        """No need to poll. Coordinator notifies entity of updates."""
+        return False
 
     @property
     def native_value(self) -> Optional[float]:
@@ -256,6 +254,11 @@ class MarstekTotalPowerSensor(CoordinatorEntity, SensorEntity):
         return {
             "device_count": len(self.coordinator.data),
         }
+
+    async def async_update(self) -> None:
+        """Update the sensor."""
+        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("MarstekTotalPowerSensor async_update completed")
 
 
 class MarstekDeviceTotalChargeSensor(MarstekBaseSensor):
@@ -298,3 +301,8 @@ class MarstekDeviceTotalChargeSensor(MarstekBaseSensor):
             "device_name": self.device_data.get("name"),
             "capacity_kwh": self.device_data.get("capacity_kwh", DEFAULT_CAPACITY_KWH),
         }
+
+    async def async_update(self) -> None:
+        """Update the sensor."""
+        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("MarstekDeviceTotalChargeSensor async_update completed for device %s", self.devid)
