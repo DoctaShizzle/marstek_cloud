@@ -23,6 +23,14 @@ This custom integration connects your Marstek battery system (via the Marstek cl
   - `report_time` – Timestamp of last report
   - `total_charge` – Total charge per device (kWh) with energy storage device class
 
+- **Cumulative energy sensors for Energy Dashboard (auto-created!)**  
+  - `energy_charged` – Total energy charged to battery (kWh), cumulative
+  - `energy_discharged` – Total energy discharged from battery (kWh), cumulative
+  - `energy_load` – Total energy consumed by loads (kWh), cumulative
+  - All use the Riemann sum integral method to calculate energy from power over time
+  - State persists across Home Assistant restarts
+  - Ready to use with Energy Dashboard, no manual helper configuration needed!
+
 - **Cross-device total charge sensor**  
   - `total_charge_all_devices` – Sum of total charges across all batteries (kWh).
 
@@ -47,12 +55,14 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 
 ## ⚡ Energy Dashboard Configuration
 
-This integration is fully compatible with Home Assistant's Energy Dashboard! To track your battery charging, discharging, and storage:
+This integration is fully compatible with Home Assistant's Energy Dashboard with **automatic cumulative energy sensors!**
+
+No manual Riemann sum helper configuration is needed - the integration automatically creates cumulative energy sensors that track total kWh charged, discharged, and consumed. These sensors are immediately ready to use with the Energy Dashboard.
 
 📖 **[Read the complete Energy Dashboard setup guide](ENERGY_DASHBOARD.md)**
 
 The guide covers:
-- Creating Riemann sum integral helpers to track cumulative energy
+- Using the auto-created cumulative energy sensors (no helpers needed!)
 - Configuring the Energy Dashboard with your battery sensors
 - Troubleshooting tips and best practices
 - Example configurations for different setups
