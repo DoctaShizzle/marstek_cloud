@@ -1,5 +1,9 @@
 from datetime import datetime
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorDeviceClass,
+    SensorStateClass,
+)
 from homeassistant.const import (
     PERCENTAGE,
     UnitOfPower,
@@ -12,11 +16,36 @@ import logging
 
 # Main battery data sensors
 SENSOR_TYPES = {
-    "soc": {"name": "State of Charge", "unit": PERCENTAGE},
-    "charge": {"name": "Charge Power", "unit": UnitOfPower.WATT},
-    "discharge": {"name": "Discharge Power", "unit": UnitOfPower.WATT},
-    "load": {"name": "Load", "unit": UnitOfPower.WATT},
-    "profit": {"name": "Profit", "unit": CURRENCY_EURO},
+    "soc": {
+        "name": "State of Charge",
+        "unit": PERCENTAGE,
+        "device_class": SensorDeviceClass.BATTERY,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "charge": {
+        "name": "Charge Power",
+        "unit": UnitOfPower.WATT,
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "discharge": {
+        "name": "Discharge Power",
+        "unit": UnitOfPower.WATT,
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "load": {
+        "name": "Load",
+        "unit": UnitOfPower.WATT,
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+    },
+    "profit": {
+        "name": "Profit",
+        "unit": CURRENCY_EURO,
+        "device_class": SensorDeviceClass.MONETARY,
+        "state_class": SensorStateClass.TOTAL,
+    },
     "version": {"name": "Firmware Version", "unit": None},
     "sn": {"name": "Serial Number", "unit": None},
     "report_time": {"name": "Report Time", "unit": UnitOfTime.SECONDS}
@@ -80,6 +109,8 @@ class MarstekBaseSensor(SensorEntity):
         self._attr_name = f"{device['name']} {meta['name']}"
         self._attr_unique_id = f"{self.devid}_{self.key}"  # Ensure unique ID includes device ID and sensor key
         self._attr_native_unit_of_measurement = meta["unit"]
+        self._attr_device_class = meta.get("device_class")
+        self._attr_state_class = meta.get("state_class")
 
     @property
     def device_info(self):
@@ -139,6 +170,8 @@ class MarstekTotalChargeSensor(SensorEntity):
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_charge_all_devices_{entry_id}"
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        self._attr_device_class = SensorDeviceClass.ENERGY_STORAGE
+        self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def native_value(self):
@@ -166,6 +199,8 @@ class MarstekTotalPowerSensor(SensorEntity):
         # Use entry_id for a stable unique ID
         self._attr_unique_id = f"total_power_all_devices_{entry_id}"
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def native_value(self):
@@ -186,6 +221,11 @@ class MarstekTotalPowerSensor(SensorEntity):
 
 class MarstekDeviceTotalChargeSensor(MarstekBaseSensor):
     """Sensor to calculate the total charge for a specific device."""
+
+    def __init__(self, coordinator, device, key, meta):
+        super().__init__(coordinator, device, key, meta)
+        self._attr_device_class = SensorDeviceClass.ENERGY_STORAGE
+        self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def native_value(self):

@@ -13,15 +13,15 @@ This custom integration connects your Marstek battery system (via the Marstek cl
   Set how often the integration polls the API (10–3600 seconds) during initial setup or later via the Options menu.
 
 - **Battery metrics exposed as sensors**  
-  - `soc` – State of charge (%)
-  - `charge` – Charge power (W)
-  - `discharge` – Discharge power (W)
-  - `load` – Load power (W)
-  - `profit` – Profit (€)
+  - `soc` – State of charge (%) with battery device class
+  - `charge` – Charge power (W) with power device class
+  - `discharge` – Discharge power (W) with power device class
+  - `load` – Load power (W) with power device class
+  - `profit` – Profit (€) with monetary device class
   - `version` – Firmware version
   - `sn` – Serial number
   - `report_time` – Timestamp of last report
-  - `total_charge` – Total charge per device (kWh).
+  - `total_charge` – Total charge per device (kWh) with energy storage device class
 
 - **Cross-device total charge sensor**  
   - `total_charge_all_devices` – Sum of total charges across all batteries (kWh).
@@ -39,6 +39,23 @@ This custom integration connects your Marstek battery system (via the Marstek cl
 
 - **Smart device filtering**  
   Automatically filters out non-compatible or irrelevant device types (e.g., "HME-3") from the device list.
+
+- **Energy Dashboard compatible**  
+  All power and energy sensors include proper device classes and state classes for seamless integration with Home Assistant's Energy Dashboard.
+
+---
+
+## ⚡ Energy Dashboard Configuration
+
+This integration is fully compatible with Home Assistant's Energy Dashboard! To track your battery charging, discharging, and storage:
+
+📖 **[Read the complete Energy Dashboard setup guide](ENERGY_DASHBOARD.md)**
+
+The guide covers:
+- Creating Riemann sum integral helpers to track cumulative energy
+- Configuring the Energy Dashboard with your battery sensors
+- Troubleshooting tips and best practices
+- Example configurations for different setups
 
 ---
 
